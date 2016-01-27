@@ -76,6 +76,14 @@ const App = ({ lists, error, status, onSubmit, onDownload }) => (
           </div>
         : null}
     </div>
+    <div className='row'>
+      <p>
+        Contact: <a
+        href='https://github.com/joakin/gather-exporter/issues'>Issues</a> and <a
+          href='https://github.com/joakin/gather-exporter'>source</a>
+      </p>
+      <p>Made with {'<3'} by <a href='https://github.com/joakin'>joakin</a></p>
+    </div>
   </div>
 )
 
