@@ -6,7 +6,8 @@ var config = getConfig({
   html: function (context) {
     return {
       'index.html': context.defaultTemplate({
-        title: 'Gather exporter'
+        title: 'Gather exporter',
+        publicPath: './'
       })
     }
   }
