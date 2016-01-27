@@ -94,7 +94,7 @@ const DownloadForm = ({ status, onSubmit }) => (
     <div className='FormRow row'>
       <div className='eight columns'>
         <label htmlFor='username'>User</label>
-        <input className='u-full-width' name='username' type='text' placeholder='User name' defaultValue='joakinol'/>
+        <input className='u-full-width' name='username' type='text' placeholder='User name'/>
       </div>
       <div className='four columns'>
         <label htmlFor='domain'>From site</label>
