@@ -51,10 +51,6 @@ const App = ({ lists, error, status, onSubmit, onDownload }) => (
     <h1>Gather exporter</h1>
     <div className='row'>
       <p>Export your gather collections from a Wikimedia wiki.</p>
-      <p style={{color: '#888', fontStyle: 'italic'}}>
-        Supports up to 500 collections and up to the first 500 items of the
-        collection.
-      </p>
       {error ? <p style={{color: 'red'}}>{error.message}</p> : null}
     </div>
     <DownloadForm status={status} onSubmit={onSubmit}/>
@@ -148,15 +144,29 @@ const fetchGatherCollections = ({ user, domain }, events) => {
     .catch((e) => events.emit('userlists-error', e))
 }
 
-const fetchUserLists = (user, domain) =>
-  fetch(`https://crossorigin.me/https://${domain}/w/api.php?action=query&list=lists&lstowner=${encodeURIComponent(user)}&format=json&lstprop=label%7Cdescription%7Cpublic%7Creview%7Cimage%7Ccount%7Cupdated%7Cowner&lstlimit=500`)
-    .then((resp) => resp.json())
-    .then((res) => res.query.lists)
+const LIMIT = 500
 
-const fetchListPages = ({ id }, domain) =>
-  fetch(`https://crossorigin.me/https://${domain}/w/api.php?action=query&list=listpages&format=json&lspid=${id}&lsplimit=500`)
+const fetchUserLists = (user, domain, lists = [], cont = '') =>
+  fetch(`https://crossorigin.me/https://${domain}/w/api.php?action=query&list=lists&lstowner=${encodeURIComponent(user)}&format=json&lstprop=label%7Cdescription%7Cpublic%7Creview%7Cimage%7Ccount%7Cupdated%7Cowner&lstlimit=${LIMIT}&lstcontinue=${cont}`)
     .then((resp) => resp.json())
-    .then((res) => res.query.listpages)
+    .then((res) => {
+      const all = lists.concat(res.query.lists)
+      return res.continue
+        ? fetchUserLists(user, domain, all, res.continue.lstcontinue)
+        : all
+    })
+
+const fetchListPages = ({ id }, domain, pages = [], cont = '') =>
+  fetch(`https://crossorigin.me/https://${domain}/w/api.php?action=query&list=listpages&format=json&lspid=${id}&lsplimit=${LIMIT}` +
+        // It is awesome how inconsistent the API is. Above, fine, here not.
+        (cont ? `&lspcontinue=${cont}` : ''))
+    .then((resp) => resp.json())
+    .then((res) => {
+      const all = pages.concat(res.query.listpages)
+      return res.continue
+        ? fetchListPages({ id }, domain, all, res.continue.lspcontinue)
+        : all
+    })
 
 const downloadZip = (data, options) => {
   const zip = new Zip()
