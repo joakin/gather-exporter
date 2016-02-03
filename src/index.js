@@ -11,11 +11,13 @@ import './index.less'
 
 const after = (fn, advice) => (...args) => advice(fn(...args))
 
-const state = {
+let state = {
+  options: null,
   lists: null,
   error: null,
   status: null
 }
+
 const events = new EventEmitter()
 events.on('userlists-success', after((lists) => ({
   ...state, lists
@@ -26,13 +28,20 @@ events.on('userlists-error', after((error) => ({
 events.on('status', after((status) => ({
   ...state, status
 }), render))
+events.on('options', after((options) => ({
+  ...state, options
+}), render))
 
-function render (state) {
+function render (newState) {
+  state = newState
   reactRender(
     <App
       {...state}
-      onSubmit={(data) => fetchGatherCollections(data, events)}
-      onDownload={downloadZip}
+      onSubmit={(options) => {
+        events.emit('options', options)
+        fetchGatherCollections(options, events)
+      }}
+      onDownload={(lists) => downloadZip(lists, state.options)}
       />
   , document.getElementById('root'))
 }
@@ -149,12 +158,63 @@ const fetchListPages = ({ id }, domain) =>
     .then((resp) => resp.json())
     .then((res) => res.query.listpages)
 
-const downloadZip = (data) => {
+const downloadZip = (data, options) => {
   const zip = new Zip()
   zip.file('collections.json', JSON.stringify(data, null, 2))
   zip.file('collections.yaml', toYaml(data))
+  zip.file('collections.html', toHtml(data, options))
+  zip.file('collections.mediawiki', toWiki(data, options))
   const content = zip.generate({ type: 'blob' })
   saveAs(content, 'collections.zip')
+}
+
+const toHtml = (data, {domain, user}) => {
+  const lists = data.map(({
+    label, description, updated, count, pages,
+    image, imageurl, imagewidth, imageheight
+  }) => {
+    let pgs = pages.map(({ title }) =>
+      `<li><a href='https://${domain}/wiki/${encodeURIComponent(title)}'>${title}</a></li>`)
+    return `
+    <section>
+    <h2>${label}</h2>
+    <img src='https://${imageurl}' style='width: 25%;float: right;' />
+    <p>${description}</p>
+    <p>Last updated: ${new Date(updated).toDateString()}</p>
+    <ul>
+      ${pgs.join('')}
+    </ul>`
+  })
+
+  return `
+  <body>
+  <h1>${user}'s lists on ${domain}</h1>
+  ${lists.join('')}
+  </body>
+  `
+}
+
+const toWiki = (data, {domain, user}) => {
+  const lists = data.map(({
+    label, description, updated, count, pages,
+    image, imageurl, imagewidth, imageheight
+  }) => {
+    let pgs = pages.map(({ title }) =>
+      `* [https://${domain}/wiki/${encodeURIComponent(title)} ${title}]`)
+    const img = image ? `[[File: ${image}|thumb]]` : ''
+    return `
+==${label}==
+${img}
+${description}
+
+Last updated: ${new Date(updated).toDateString()}
+
+${pgs.join('\n')}`
+  })
+
+  return `
+=${user}'s lists on ${domain}=
+${lists.join('\n\n')}`
 }
 
 render(state)
